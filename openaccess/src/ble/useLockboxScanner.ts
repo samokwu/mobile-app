@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { State } from 'react-native-ble-plx';
 
-import { getBleManager, LOCKBOX_NAME, LOCKBOX_SERVICE_UUID, rememberLockbox } from '@/ble/lockbox';
+import {
+  BLE_SIMULATED,
+  getBleManager,
+  LOCKBOX_NAME,
+  LOCKBOX_SERVICE_UUID,
+  rememberLockbox,
+} from '@/ble/lockbox';
 
 export type LockboxSignal = {
   // 'unavailable' = no BLE native module (Expo Go / web), 'off' = Bluetooth
@@ -10,6 +16,8 @@ export type LockboxSignal = {
   status: 'unavailable' | 'off' | 'scanning' | 'found';
   rssi: number | null;
   distanceM: number | null;
+  // True when the reading comes from the simulator fallback, not a real board.
+  simulated: boolean;
 };
 
 // RSSI-to-distance path-loss model: d = 10^((txPower - rssi) / (10 * n)).
@@ -32,6 +40,41 @@ function median(values: number[]): number {
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
+// Simulator fallback: there is no Bluetooth hardware, so fake an approach —
+// after a short "searching" phase the lockbox appears ~25 m away and drifts
+// in to ~0.8 m, with RSSI derived from the same path-loss model in reverse
+// (plus noise) so the whole finder UI behaves like a real approach.
+const SIM_SEARCH_MS = 2500;
+const SIM_START_M = 25;
+const SIM_FLOOR_M = 0.8;
+
+function useSimulatedSignal(setSignal: (s: LockboxSignal) => void) {
+  useEffect(() => {
+    if (!BLE_SIMULATED) return;
+
+    let dist = SIM_START_M;
+    const startedAt = Date.now();
+
+    const tick = setInterval(() => {
+      if (Date.now() - startedAt < SIM_SEARCH_MS) return;
+      dist = Math.max(SIM_FLOOR_M, dist * 0.965 + (Math.random() - 0.5) * 0.5);
+      const rssi =
+        TX_POWER_AT_1M -
+        10 * PATH_LOSS_EXPONENT * Math.log10(dist) +
+        (Math.random() - 0.5) * 4;
+      setSignal({
+        status: 'found',
+        rssi: Math.round(rssi),
+        distanceM: dist,
+        simulated: true,
+      });
+    }, UI_TICK_MS);
+
+    return () => clearInterval(tick);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+}
+
 // Continuously scans for the lockbox while mounted and exposes a smoothed
 // RSSI + estimated distance. RSSI is noisy, so we keep a short window of
 // samples and report the median.
@@ -40,14 +83,18 @@ export function useLockboxScanner(): LockboxSignal {
     status: 'scanning',
     rssi: null,
     distanceM: null,
+    simulated: BLE_SIMULATED,
   });
   const samples = useRef<number[]>([]);
   const lastSeenAt = useRef(0);
 
+  useSimulatedSignal(setSignal);
+
   useEffect(() => {
+    if (BLE_SIMULATED) return;
     const bleManager = getBleManager();
     if (!bleManager) {
-      setSignal({ status: 'unavailable', rssi: null, distanceM: null });
+      setSignal({ status: 'unavailable', rssi: null, distanceM: null, simulated: false });
       return;
     }
 
@@ -79,7 +126,7 @@ export function useLockboxScanner(): LockboxSignal {
       } else {
         bleManager.stopDeviceScan();
         samples.current = [];
-        setSignal({ status: 'off', rssi: null, distanceM: null });
+        setSignal({ status: 'off', rssi: null, distanceM: null, simulated: false });
       }
     }, true);
 
@@ -89,7 +136,9 @@ export function useLockboxScanner(): LockboxSignal {
       if (!fresh || samples.current.length === 0) {
         samples.current = [];
         setSignal((s) =>
-          s.status === 'found' ? { status: 'scanning', rssi: null, distanceM: null } : s,
+          s.status === 'found'
+            ? { status: 'scanning', rssi: null, distanceM: null, simulated: false }
+            : s,
         );
         return;
       }
@@ -98,6 +147,7 @@ export function useLockboxScanner(): LockboxSignal {
         status: 'found',
         rssi: Math.round(rssi),
         distanceM: rssiToMeters(rssi),
+        simulated: false,
       });
     }, UI_TICK_MS);
 

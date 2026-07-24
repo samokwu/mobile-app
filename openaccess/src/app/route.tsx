@@ -1,5 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { useEffect, useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
@@ -20,15 +21,28 @@ export default function RouteScreen() {
   const { coords, denied } = useLiveLocation();
   const fitted = useRef(false);
 
+  // AI-generated preview of where the lockbox sits on this home; loops
+  // silently in the sheet like a Live Photo.
+  const player = useVideoPlayer(home.lockboxVideo ?? null, (p) => {
+    p.loop = true;
+    p.muted = true;
+    p.play();
+  });
+
   // Once we have a GPS fix, frame the map around the user and the destination.
   useEffect(() => {
     if (!coords || fitted.current) return;
     fitted.current = true;
     mapRef.current?.fitToCoordinates([coords, home.coord], {
-      edgePadding: { top: 120, right: 60, bottom: 340, left: 60 },
+      edgePadding: {
+        top: 120,
+        right: 60,
+        bottom: home.lockboxVideo ? 560 : 340,
+        left: 60,
+      },
       animated: true,
     });
-  }, [coords, home.coord]);
+  }, [coords, home.coord, home.lockboxVideo]);
 
   const distanceM = coords ? haversineMeters(coords, home.coord) : null;
 
@@ -78,6 +92,20 @@ export default function RouteScreen() {
             Location permission is required to guide you to the home. Enable it in
             Settings → OpenAccess.
           </Text>
+        )}
+
+        {home.lockboxVideo != null && (
+          <View style={styles.videoCard}>
+            <VideoView
+              player={player}
+              style={styles.video}
+              contentFit="cover"
+              nativeControls={false}
+            />
+            <View style={styles.videoBadge}>
+              <Text style={styles.videoBadgeText}>LOCKBOX PREVIEW</Text>
+            </View>
+          </View>
         )}
 
         <View style={styles.hintRow}>
@@ -160,6 +188,27 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   deniedNote: { fontSize: 13, lineHeight: 19, color: colors.inkMuted },
+  videoCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: colors.tile,
+  },
+  video: { width: '100%', aspectRatio: 16 / 9 },
+  videoBadge: {
+    position: 'absolute',
+    left: 10,
+    top: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: radii.pill,
+    backgroundColor: 'rgba(5,26,68,0.72)',
+  },
+  videoBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    letterSpacing: 0.95,
+    color: '#FFFFFF',
+  },
   hintRow: {
     flexDirection: 'row',
     alignItems: 'center',

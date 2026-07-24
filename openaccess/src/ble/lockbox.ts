@@ -1,4 +1,10 @@
+import * as Device from 'expo-device';
 import { BleManager } from 'react-native-ble-plx';
+
+// The iOS Simulator (and Android emulator) has no Bluetooth hardware, so the
+// finder falls back to a simulated lockbox signal there. Real devices always
+// use live scanning.
+export const BLE_SIMULATED = !Device.isDevice;
 
 // Must match the Arduino sketch (arduino/openaccess_lockbox).
 export const LOCKBOX_NAME = 'OpenAccess-LB';
@@ -39,6 +45,12 @@ export function hasKnownLockbox(): boolean {
 // board resumes advertising. Returns false if no board was ever discovered
 // or the write failed (demo mode keeps working either way).
 export async function sendUnlock(): Promise<boolean> {
+  if (BLE_SIMULATED) {
+    // No board to talk to on the simulator — pretend the write succeeded so
+    // the unlock flow completes.
+    await new Promise((r) => setTimeout(r, 350));
+    return true;
+  }
   const bleManager = getBleManager();
   if (!bleManager || !lastDeviceId) return false;
   try {

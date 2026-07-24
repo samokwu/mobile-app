@@ -11,6 +11,9 @@ export type Home = {
   batt: number;
   boxId: number;
   coord: { latitude: number; longitude: number };
+  // AI-generated clip (scripts/generate-lockbox-video.mjs) showing where the
+  // lockbox is mounted on this home, played on the En Route screen.
+  lockboxVideo?: number;
 };
 
 export const HOMES: Home[] = [
@@ -23,6 +26,7 @@ export const HOMES: Home[] = [
     batt: 87,
     boxId: 4820,
     coord: { latitude: 33.41477, longitude: -111.90931 },
+    lockboxVideo: require('../../assets/videos/lockbox-preview.mp4'),
   },
   {
     id: 1,

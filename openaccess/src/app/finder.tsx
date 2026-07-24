@@ -83,7 +83,7 @@ export default function FinderScreen() {
   const params = useLocalSearchParams<{ home?: string }>();
   const home = HOMES[Number(params.home)] ?? HOMES[0];
 
-  const { status, rssi, distanceM } = useLockboxScanner();
+  const { status, rssi, distanceM, simulated } = useLockboxScanner();
   const found = status === 'found' && distanceM != null;
   const d = found ? distanceM : MAX_RANGE_M;
 
@@ -191,6 +191,7 @@ export default function FinderScreen() {
           <Text style={styles.distUnit}> m</Text>
         </Text>
         <Text style={styles.statusText}>{statusText}</Text>
+        {simulated && <Text style={styles.simTag}>Simulated signal · no Bluetooth on simulator</Text>}
       </View>
 
       <View style={styles.signalRow}>
@@ -310,6 +311,12 @@ const styles = StyleSheet.create({
   },
   distUnit: { fontSize: 24, fontWeight: '400', color: 'rgba(255,255,255,0.55)' },
   statusText: { fontSize: 14.5, color: colors.whiteMuted, marginTop: 10 },
+  simTag: {
+    fontSize: 11,
+    letterSpacing: 0.4,
+    color: 'rgba(255,255,255,0.35)',
+    marginTop: 6,
+  },
   signalRow: {
     flexDirection: 'row',
     alignItems: 'center',

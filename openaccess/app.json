@@ -59,7 +59,8 @@
           "locationWhenInUsePermission": "OpenAccess uses your location to guide you to the home and show your position on the map."
         }
       ],
-      "react-native-maps"
+      "react-native-maps",
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true,
