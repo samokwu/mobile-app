@@ -11,6 +11,21 @@ Expo (React Native). Recreates the OpenAccess v2 design with:
 - **Unlock** — hold-to-unlock; writes a BLE characteristic so the Arduino
   reacts on its LED matrix
 
+## Demo
+
+<p align="center">
+  <img src="docs/demo.gif"
+       alt="Walkthrough: today's visits, en route map, BLE finder radar, hold-to-unlock, lid released"
+       width="260">
+</p>
+
+Today's visits → en route with the lockbox preview → the finder radar
+counting down from 19 m → hold-to-unlock → lid released with the access log.
+
+Recorded on the iOS Simulator, which has no Bluetooth, so the Finder screen
+falls back to a simulated signal (the screen says so). On a real iPhone those
+distances come from the Arduino's RSSI.
+
 ## Hardware: Arduino Uno R4 WiFi
 
 Flash `arduino/openaccess_lockbox/openaccess_lockbox.ino` using the Arduino
